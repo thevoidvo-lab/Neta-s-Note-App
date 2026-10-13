@@ -6,6 +6,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
       - name: Extract ZIP
         run: |
           unzip NotesApp_complete.zip -d extracted
@@ -17,6 +20,8 @@ jobs:
         run: |
           if [ -f extracted/NotesApp/gradlew ]; then
             echo "path=extracted/NotesApp" >> $GITHUB_OUTPUT
+          elif [ -f extracted/NetasNotes/gradlew ]; then
+            echo "path=extracted/NetasNotes" >> $GITHUB_OUTPUT
           elif [ -f extracted/gradlew ]; then
             echo "path=extracted" >> $GITHUB_OUTPUT
           else
