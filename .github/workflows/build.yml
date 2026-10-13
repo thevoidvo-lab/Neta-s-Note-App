@@ -1,0 +1,42 @@
+name: Build Neta's Notes APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract ZIP
+        run: |
+          unzip NotesApp_complete.zip -d extracted
+          echo "=== isi extracted ==="
+          ls -la extracted
+
+      - name: Find Gradle Project
+        id: find
+        run: |
+          if [ -f extracted/NotesApp/gradlew ]; then
+            echo "path=extracted/NotesApp" >> $GITHUB_OUTPUT
+          elif [ -f extracted/gradlew ]; then
+            echo "path=extracted" >> $GITHUB_OUTPUT
+          else
+            echo "Project not found, cari manual:"
+            find extracted -name "gradlew" -type f
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build APK
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: netas-notes-apk
+          path: ${{ steps.find.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
