@@ -1,0 +1,106 @@
+name: Build Neta's Notes APK
+on: [push, workflow_dispatch]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install unzip + curl
+        run: sudo apt-get update && sudo apt-get install -y unzip curl
+
+      - name: Extract ZIP
+        run: |
+          ZIP=$(find . -name "*.zip" | head -n 1)
+          echo "zip: $ZIP"
+          unzip -o "$ZIP" -d extracted
+
+      - name: Cari project root
+        id: find
+        run: |
+          SETTINGS=$(find extracted -name "settings.gradle" -type f | head -n 1)
+          if [ -z "$SETTINGS" ]; then
+            echo "settings.gradle ga ketemu"
+            find extracted -type f | head -50
+            exit 1
+          fi
+          DIR=$(dirname "$SETTINGS")
+          echo "path=$DIR" >> $GITHUB_OUTPUT
+          echo "project root: $DIR"
+
+      - name: Bersihin file corrupt
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          echo "=== before ==="
+          ls -la
+          rm -rf .gradle
+          rm -rf build
+          rm -rf app/build
+          rm -rf .idea
+          rm -f local.properties
+          rm -f *.iml
+          find . -name "*.class" -delete
+          find . -name "*.jar" -path "*/gradle/wrapper/*" -delete
+          echo "=== after ==="
+          ls -la
+
+      - name: Ganti gradlew, gradlew.bat, gradle-wrapper.jar, gradle-wrapper.properties
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          mkdir -p gradle/wrapper
+          curl -sL -o gradlew https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradlew
+          curl -sL -o gradlew.bat https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradlew.bat
+          curl -sL -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradle/wrapper/gradle-wrapper.jar
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0.2-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+          chmod +x gradlew
+          echo "=== gradle files ==="
+          ls -la gradlew gradlew.bat gradle/wrapper/
+
+      - name: Bersihin folder res/font dari file non-font
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          if [ -d app/src/main/res/font ]; then
+            cd app/src/main/res/font
+            for f in *; do
+              case "$f" in
+                *.ttf|*.otf|*.ttc|*.xml) ;;
+                *) mkdir -p ../../../docs/font_notes && mv "$f" ../../../docs/font_notes/ 2>/dev/null || rm -f "$f" ;;
+              esac
+            done
+            echo "=== isi res/font ==="
+            ls -la
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: 8.0.2
+
+      - name: Generate Gradle Wrapper (regenerate)
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          gradle wrapper --gradle-version 8.0.2
+          chmod +x gradlew
+          echo "=== wrapper regenerated ==="
+          ls -la gradlew gradle/wrapper/
+
+      - name: Build APK
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          ./gradlew assembleDebug --stacktrace --info
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: netas-notes-apk
+          path: ${{ steps.find.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
