@@ -12,23 +12,22 @@ jobs:
       - name: Extract ZIP
         run: |
           ZIP=$(find . -name "*.zip" | head -n 1)
-          echo "zip yang ketemu: $ZIP"
           unzip "$ZIP" -d extracted
-          echo "=== isi extracted ==="
-          ls -la extracted
 
       - name: Cari gradlew
         id: find
         run: |
           GRADLEW=$(find extracted -name "gradlew" -type f | head -n 1)
-          if [ -z "$GRADLEW" ]; then
-            echo "gradlew ga ketemu"
-            find extracted -type f | head -50
-            exit 1
-          fi
           DIR=$(dirname "$GRADLEW")
           echo "path=$DIR" >> $GITHUB_OUTPUT
-          echo "gradlew ada di: $DIR"
+
+      - name: Pindahin README.txt
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          if [ -f app/src/main/res/font/README.txt ]; then
+            mkdir -p docs
+            mv app/src/main/res/font/README.txt docs/README_font.txt
+          fi
 
       - uses: actions/setup-java@v4
         with:
