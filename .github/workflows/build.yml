@@ -25,15 +25,20 @@ jobs:
           fi
           DIR=$(dirname "$SETTINGS")
           echo "path=$DIR" >> $GITHUB_OUTPUT
-          echo "project root: $DIR"
 
-      - name: Pindahin README.txt
+      - name: Bersihin file corrupt
         working-directory: ${{ steps.find.outputs.path }}
         run: |
-          if [ -f app/src/main/res/font/README.txt ]; then
-            mkdir -p docs
-            mv app/src/main/res/font/README.txt docs/README_font.txt
-          fi
+          rm -rf .gradle
+          rm -rf build
+          rm -rf app/build
+          rm -f local.properties
+
+      - name: Ganti gradle-wrapper.jar
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          curl -L -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradle/wrapper/gradle-wrapper.jar
+          ls -la gradle/wrapper/
 
       - uses: actions/setup-java@v4
         with:
