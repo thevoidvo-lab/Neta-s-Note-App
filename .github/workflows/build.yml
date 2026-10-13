@@ -27,6 +27,17 @@ jobs:
           rm -rf .gradle build app/build .idea local.properties
           find . -name "*.class" -delete
 
+      - name: Patch import calculatePan/Zoom/Rotation
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          for f in $(find . -name "CanvasView.kt" -o -name "ElementView.kt"); do
+            sed -i 's|import androidx.compose.ui.input.pointer.calculatePan|import androidx.compose.foundation.gestures.calculatePan|g' "$f"
+            sed -i 's|import androidx.compose.ui.input.pointer.calculateZoom|import androidx.compose.foundation.gestures.calculateZoom|g' "$f"
+            sed -i 's|import androidx.compose.ui.input.pointer.calculateRotation|import androidx.compose.foundation.gestures.calculateRotation|g' "$f"
+            echo "=== $f ==="
+            grep -n "calculate" "$f" || true
+          done
+
       - name: Generate debug.keystore
         working-directory: ${{ steps.find.outputs.path }}
         run: |
@@ -40,7 +51,6 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
           cp debug.keystore app/debug.keystore 2>/dev/null || true
-          ls -la debug.keystore app/debug.keystore 2>/dev/null || true
 
       - uses: actions/setup-java@v4
         with:
