@@ -27,6 +27,21 @@ jobs:
           rm -rf .gradle build app/build .idea local.properties
           find . -name "*.class" -delete
 
+      - name: Generate debug.keystore
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          keytool -genkeypair -v \
+            -keystore debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+          cp debug.keystore app/debug.keystore 2>/dev/null || true
+          ls -la debug.keystore app/debug.keystore 2>/dev/null || true
+
       - uses: actions/setup-java@v4
         with:
           java-version: '21'
