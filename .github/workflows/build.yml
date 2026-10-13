@@ -12,49 +12,20 @@ jobs:
       - name: Extract ZIP
         run: |
           ZIP=$(find . -name "*.zip" | head -n 1)
-          echo "zip: $ZIP"
           unzip -o "$ZIP" -d extracted
 
       - name: Cari project root
         id: find
         run: |
-          SETTINGS=$(find extracted -name "settings.gradle" -type f | head -n 1)
+          SETTINGS=$(find extracted -name "settings.gradle*" -type f | head -n 1)
           DIR=$(dirname "$SETTINGS")
           echo "path=$DIR" >> $GITHUB_OUTPUT
-          echo "project root: $DIR"
 
-      - name: Bersihin SEMUA file corrupt
+      - name: Bersihin file corrupt
         working-directory: ${{ steps.find.outputs.path }}
         run: |
-          echo "=== before ==="
-          ls -la
-          echo "=== hapus file corrupt ==="
           rm -rf .gradle build app/build .idea local.properties
-          find . -name "*.jar" -type f -exec ls -la {} \;
-          find . -name "*.jar" -type f -size -100c -delete
           find . -name "*.class" -delete
-          find . -name "*.bin" -type f -exec ls -la {} \;
-          find . -name "*.proto" -type f -exec ls -la {} \;
-          echo "=== setelah ==="
-          ls -la
-
-      - name: Ganti gradle-wrapper.jar, gradlew, gradle-wrapper.properties
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          mkdir -p gradle/wrapper
-          curl -sL -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradle/wrapper/gradle-wrapper.jar
-          curl -sL -o gradlew https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradlew
-          chmod +x gradlew
-          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0.2-bin.zip
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          EOF
-          echo "=== gradle files ==="
-          ls -la gradlew gradle/wrapper/
-          file gradle/wrapper/gradle-wrapper.jar
 
       - uses: actions/setup-java@v4
         with:
@@ -64,17 +35,14 @@ jobs:
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          gradle-version: 8.0.2
-
-      - name: Generate Gradle Wrapper (pake file yang udah diganti)
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          ./gradlew wrapper --gradle-version 8.0.2 --stacktrace --info
+          gradle-version: 8.9
 
       - name: Build APK
         working-directory: ${{ steps.find.outputs.path }}
         run: |
-          ./gradlew assembleDebug --stacktrace --info
+          gradle wrapper --gradle-version 8.9
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
 
       - uses: actions/upload-artifact@v4
         with:
