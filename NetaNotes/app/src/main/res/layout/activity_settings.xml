@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingBottom="32dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:gravity="center_vertical">
+
+            <ImageView
+                android:id="@+id/btnBack"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@android:drawable/ic_menu_revert"
+                app:tint="@color/text_primary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="Pengaturan"
+                android:textColor="@color/text_primary"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <TextView style="@style/SectionDivider" android:text="TAMPILAN" />
+
+        <LinearLayout android:id="@+id/cardTheme" style="@style/SettingsCard">
+            <ImageView style="@style/SettingsCardIcon" android:src="@android:drawable/ic_menu_view" />
+            <LinearLayout style="@style/SettingsCardTextWrap">
+                <TextView style="@style/SettingsCardTitle" android:text="Preset tema" />
+                <TextView style="@style/SettingsCardDesc" android:text="Dark atau Light mode" />
+            </LinearLayout>
+            <ImageView style="@style/SettingsCardChevron" />
+        </LinearLayout>
+
+        <TextView style="@style/SectionDivider" android:text="HOME" />
+
+        <LinearLayout android:id="@+id/cardHomeTitle" style="@style/SettingsCard">
+            <ImageView style="@style/SettingsCardIcon" android:src="@android:drawable/ic_menu_edit" />
+            <LinearLayout style="@style/SettingsCardTextWrap">
+                <TextView style="@style/SettingsCardTitle" android:text="Judul Home" />
+                <TextView style="@style/SettingsCardDesc" android:text="Ganti teks judul di halaman utama" />
+            </LinearLayout>
+            <ImageView style="@style/SettingsCardChevron" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/cardHomeBg" style="@style/SettingsCard">
+            <ImageView style="@style/SettingsCardIcon" android:src="@android:drawable/ic_menu_crop" />
+            <LinearLayout style="@style/SettingsCardTextWrap">
+                <TextView style="@style/SettingsCardTitle" android:text="Background Home" />
+                <TextView style="@style/SettingsCardDesc" android:text="Warna, gradient, gambar, atau blur" />
+            </LinearLayout>
+            <ImageView style="@style/SettingsCardChevron" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/cardHomeFont" style="@style/SettingsCard">
+            <ImageView style="@style/SettingsCardIcon" android:src="@android:drawable/ic_menu_sort_alphabetically" />
+            <LinearLayout style="@style/SettingsCardTextWrap">
+                <TextView style="@style/SettingsCardTitle" android:text="Font Home" />
+                <TextView style="@style/SettingsCardDesc" android:text="Upload font .ttf / .otf sendiri" />
+            </LinearLayout>
+            <ImageView style="@style/SettingsCardChevron" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/cardHomeSticker" style="@style/SettingsCard">
+            <ImageView style="@style/SettingsCardIcon" android:src="@android:drawable/ic_menu_gallery" />
+            <LinearLayout style="@style/SettingsCardTextWrap">
+                <TextView style="@style/SettingsCardTitle" android:text="Sticker Home" />
+                <TextView style="@style/SettingsCardDesc" android:text="Tambah sticker custom di Home" />
+            </LinearLayout>
+            <ImageView style="@style/SettingsCardChevron" />
+        </LinearLayout>
+
+        <TextView style="@style/SectionDivider" android:text="KEAMANAN" />
+
+        <LinearLayout android:id="@+id/cardPin" style="@style/SettingsCard">
+            <ImageView style="@style/SettingsCardIcon" android:src="@android:drawable/ic_lock_lock" />
+            <LinearLayout style="@style/SettingsCardTextWrap">
+                <TextView style="@style/SettingsCardTitle" android:text="Ganti PIN" />
+                <TextView style="@style/SettingsCardDesc" android:text="Buat kunci catatan" />
+            </LinearLayout>
+            <ImageView style="@style/SettingsCardChevron" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/cardIcon" style="@style/SettingsCard">
+            <ImageView style="@style/SettingsCardIcon" android:src="@android:drawable/ic_menu_myplaces" />
+            <LinearLayout style="@style/SettingsCardTextWrap">
+                <TextView style="@style/SettingsCardTitle" android:text="Ikon aplikasi" />
+                <TextView style="@style/SettingsCardDesc" android:text="Pilih dari 6 preset ikon" />
+            </LinearLayout>
+            <ImageView style="@style/SettingsCardChevron" />
+        </LinearLayout>
+
+        <TextView style="@style/SectionDivider" android:text="DATA" />
+
+        <LinearLayout android:id="@+id/cardExport" style="@style/SettingsCard">
+            <ImageView style="@style/SettingsCardIcon" android:src="@android:drawable/ic_menu_upload" />
+            <LinearLayout style="@style/SettingsCardTextWrap">
+                <TextView style="@style/SettingsCardTitle" android:text="Ekspor JSON" />
+                <TextView style="@style/SettingsCardDesc" android:text="Backup semua catatan" />
+            </LinearLayout>
+            <ImageView style="@style/SettingsCardChevron" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/cardImport" style="@style/SettingsCard">
+            <ImageView style="@style/SettingsCardIcon" android:src="@android:drawable/ic_menu_upload_you_tube" />
+            <LinearLayout style="@style/SettingsCardTextWrap">
+                <TextView style="@style/SettingsCardTitle" android:text="Impor JSON" />
+                <TextView style="@style/SettingsCardDesc" android:text="Pulihkan dari backup" />
+            </LinearLayout>
+            <ImageView style="@style/SettingsCardChevron" />
+        </LinearLayout>
+
+        <TextView style="@style/SectionDivider" android:text="TENTANG" />
+
+        <LinearLayout style="@style/SettingsCard">
+            <ImageView style="@style/SettingsCardIcon" android:src="@android:drawable/ic_dialog_info" />
+            <LinearLayout style="@style/SettingsCardTextWrap">
+                <TextView style="@style/SettingsCardTitle" android:text="Versi" />
+                <TextView android:id="@+id/tvVersion" style="@style/SettingsCardDesc" android:text="Versi 1.0" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout style="@style/SettingsCard">
+            <ImageView style="@style/SettingsCardIcon" android:src="@android:drawable/ic_menu_info_details" />
+            <LinearLayout style="@style/SettingsCardTextWrap">
+                <TextView style="@style/SettingsCardTitle" android:text="Developer" />
+                <TextView style="@style/SettingsCardDesc" android:text="Dibuat buat Neta" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+
+</ScrollView>

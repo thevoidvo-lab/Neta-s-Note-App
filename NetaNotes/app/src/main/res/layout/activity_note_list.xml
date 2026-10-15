@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootHome"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:padding="16dp"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/tvHeaderTitle"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Neta's Notes"
+                android:textColor="@color/text_primary"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <ImageView
+                android:id="@+id/btnSearchIcon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_marginEnd="16dp"
+                android:src="@android:drawable/ic_menu_search"
+                app:tint="@color/text_primary" />
+
+            <ImageView
+                android:id="@+id/btnMenu"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@android:drawable/ic_menu_more"
+                app:tint="@color/text_primary" />
+
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/etSearch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="12dp"
+            android:background="@drawable/bg_search_rounded"
+            android:drawableStart="@android:drawable/ic_menu_search"
+            android:drawablePadding="8dp"
+            android:hint="Cari catatan..."
+            android:textColorHint="@color/text_secondary"
+            android:textColor="@color/text_primary"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp" />
+
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:layout_marginBottom="8dp">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp">
+
+                <TextView
+                    android:id="@+id/chipSemua"
+                    style="@style/FilterChip"
+                    android:text="Semua" />
+
+                <TextView
+                    android:id="@+id/chipPinned"
+                    style="@style/FilterChip"
+                    android:text="Pinned" />
+
+                <TextView
+                    android:id="@+id/chipLocked"
+                    style="@style/FilterChip"
+                    android:text="Locked" />
+
+                <TextView
+                    android:id="@+id/chipKategori"
+                    style="@style/FilterChip"
+                    android:text="Kategori" />
+
+            </LinearLayout>
+        </HorizontalScrollView>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerNotes"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="80dp" />
+
+            <LinearLayout
+                android:id="@+id/emptyState"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:src="@android:drawable/ic_menu_edit"
+                    app:tint="@color/text_secondary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Belum ada catatan. Tap + buat mulai"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/fabAdd"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="24dp"
+                android:layout_marginBottom="96dp"
+                android:background="@drawable/bg_fab"
+                android:elevation="8dp"
+                android:padding="16dp"
+                android:src="@android:drawable/ic_input_add"
+                app:tint="@color/white" />
+
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:orientation="horizontal"
+            android:background="@color/surface"
+            android:elevation="8dp">
+
+            <LinearLayout android:id="@+id/navNotes" style="@style/BottomNavItem">
+                <ImageView style="@style/BottomNavIcon" android:src="@android:drawable/ic_menu_agenda" />
+                <TextView style="@style/BottomNavLabel" android:text="Notes" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/navSearch" style="@style/BottomNavItem">
+                <ImageView style="@style/BottomNavIcon" android:src="@android:drawable/ic_menu_search" />
+                <TextView style="@style/BottomNavLabel" android:text="Search" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/navSettings" style="@style/BottomNavItem">
+                <ImageView style="@style/BottomNavIcon" android:src="@android:drawable/ic_menu_manage" />
+                <TextView style="@style/BottomNavLabel" android:text="Settings" />
+            </LinearLayout>
+
+            <LinearLayout android:id="@+id/navProfile" style="@style/BottomNavItem">
+                <ImageView style="@style/BottomNavIcon" android:src="@android:drawable/ic_menu_myplaces" />
+                <TextView style="@style/BottomNavLabel" android:text="Profile" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</RelativeLayout>
