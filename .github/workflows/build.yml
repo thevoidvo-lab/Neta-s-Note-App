@@ -6,49 +6,93 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install unzip + curl
+      - name: Install tools
         run: sudo apt-get update && sudo apt-get install -y unzip curl
 
       - name: Extract ZIP
         run: |
           ZIP=$(find . -name "*.zip" | head -n 1)
+          if [ -z "$ZIP" ]; then echo "zip ga ketemu"; exit 1; fi
           unzip -o "$ZIP" -d extracted
 
       - name: Cari project root
         id: find
         run: |
-          SETTINGS=$(find extracted -name "settings.gradle*" -type f | head -n 1)
-          DIR=$(dirname "$SETTINGS")
+          S=$(find extracted -name "settings.gradle*" -type f | head -n 1)
+          if [ -z "$S" ]; then
+            # fallback: cari folder yang ada app/build.gradle
+            S=$(find extracted -path "*/app/build.gradle*" | head -n 1)
+            DIR=$(dirname $(dirname "$S"))
+          else
+            DIR=$(dirname "$S")
+          fi
           echo "path=$DIR" >> $GITHUB_OUTPUT
+          echo "project root: $DIR"
+          ls -la "$DIR"
 
-      - name: Bersihin file corrupt
+      - name: Bersihin
         working-directory: ${{ steps.find.outputs.path }}
         run: |
           rm -rf .gradle build app/build .idea local.properties
           find . -name "*.class" -delete
 
-      - name: Generate root build.gradle
+      - name: Tulis settings.gradle
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "Neta's Notes"
+          include ':app'
+          EOF
+          cat settings.gradle
+
+      - name: Tulis root build.gradle
         working-directory: ${{ steps.find.outputs.path }}
         run: |
           cat > build.gradle << 'EOF'
-          plugins {
-              id 'com.android.application' version '9.1.1' apply false
-              id 'com.android.library' version '9.1.1' apply false
-              id 'org.jetbrains.kotlin.android' version '2.2.10' apply false
-              id 'com.google.devtools.ksp' version '2.2.10-1.0.28' apply false
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:9.1.1'
+                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.10'
+                  classpath 'com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:2.2.10-1.0.28'
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          tasks.register('clean', Delete) {
+              delete rootProject.buildDir
           }
           EOF
           cat build.gradle
 
-      - name: Generate ulang app/build.gradle
+      - name: Tulis app/build.gradle
         working-directory: ${{ steps.find.outputs.path }}
         run: |
           cat > app/build.gradle << 'EOF'
-          plugins {
-              id 'com.android.application'
-              id 'org.jetbrains.kotlin.android'
-              id 'com.google.devtools.ksp'
-          }
+          apply plugin: 'com.android.application'
+          apply plugin: 'org.jetbrains.kotlin.android'
+          apply plugin: 'com.google.devtools.ksp'
 
           android {
               namespace 'com.example.notesapp'
@@ -65,7 +109,6 @@ jobs:
               buildTypes {
                   release {
                       minifyEnabled false
-                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
                   }
               }
 
@@ -119,18 +162,10 @@ jobs:
             sed -i 's|import androidx.compose.ui.input.pointer.calculateRotation|import androidx.compose.foundation.gestures.calculateRotation|g' "$f"
           done
 
-      - name: Generate debug.keystore
+      - name: Generate keystore
         working-directory: ${{ steps.find.outputs.path }}
         run: |
-          keytool -genkeypair -v \
-            -keystore debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US"
+          keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           cp debug.keystore app/debug.keystore 2>/dev/null || true
 
       - uses: actions/setup-java@v4
@@ -150,7 +185,19 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
+      - name: Fallback build (tanpa KSP)
+        if: failure()
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          echo "=== build gagal, coba fallback: hapus KSP, pake kapt ==="
+          sed -i "s|apply plugin: 'com.google.devtools.ksp'|apply plugin: 'kotlin-kapt'|g" app/build.gradle
+          sed -i "s|ksp '|kapt '|g" app/build.gradle
+          sed -i "/com.google.devtools.ksp/d" build.gradle
+          sed -i "/classpath 'com.android.tools.build:gradle:9.1.1'/a\\        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.10'" build.gradle
+          ./gradlew assembleDebug --stacktrace
+
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: netas-notes-apk
           path: ${{ steps.find.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
