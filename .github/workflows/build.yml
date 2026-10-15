@@ -1,5 +1,5 @@
 
-name: Build Notes Priv APK
+name: Build Neta's Notes APK
 
 on: [push, workflow_dispatch]
 
@@ -11,11 +11,16 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install unzip + curl
-        run: sudo apt-get update && sudo apt-get install -y unzip curl
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip curl
 
       - name: Extract ZIP
+        shell: bash
         run: |
-          ZIP=$(find . -name "*.zip" | head -n 1)
+          set -euo pipefail
+
+          ZIP=$(find . -maxdepth 1 -name "*.zip" -print -quit)
 
           if [ -z "$ZIP" ]; then
             echo "ERROR: File ZIP tidak ditemukan!"
@@ -29,7 +34,11 @@ jobs:
         id: find
         shell: bash
         run: |
-          SETTINGS=$(find extracted -name "settings.gradle" -o -name "settings.gradle.kts" | head -n 1)
+          set -euo pipefail
+
+          SETTINGS=$(find extracted -type f \
+            \( -name "settings.gradle" -o -name "settings.gradle.kts" \) \
+            -print -quit)
 
           if [ -z "$SETTINGS" ]; then
             echo "ERROR: settings.gradle tidak ditemukan!"
@@ -43,6 +52,7 @@ jobs:
 
       - name: Bersihin file corrupt
         working-directory: ${{ steps.find.outputs.path }}
+        shell: bash
         run: |
           rm -rf .gradle build app/build .idea local.properties
           find . -name "*.class" -delete
@@ -66,13 +76,17 @@ jobs:
 
             echo "=== $f ==="
             grep -n "calculate" "$f" || true
-          done < <(find . \( -name "CanvasView.kt" -o -name "ElementView.kt" \) -print0)
+          done < <(
+            find . \
+              \( -name "CanvasView.kt" -o -name "ElementView.kt" \) \
+              -print0
+          )
 
       - name: Cek baris 155-180 CanvasView
         working-directory: ${{ steps.find.outputs.path }}
         shell: bash
         run: |
-          F=$(find . -name "CanvasView.kt" | head -n 1)
+          F=$(find . -name "CanvasView.kt" -print -quit)
 
           if [ -z "$F" ]; then
             echo "CanvasView.kt tidak ditemukan."
@@ -85,6 +99,7 @@ jobs:
 
       - name: Generate debug.keystore
         working-directory: ${{ steps.find.outputs.path }}
+        shell: bash
         run: |
           keytool -genkeypair -v \
             -keystore debug.keystore \
@@ -104,98 +119,40 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          gradle-version: '9.3.1'
-
-      - name: Auto-fix Gradle Wrapper to 9.3.1
+      - name: Build APK
         working-directory: ${{ steps.find.outputs.path }}
         shell: bash
         run: |
           set -euo pipefail
 
-          TARGET_GRADLE="9.3.1"
-
-          echo "=== Java version ==="
+          echo "=== Java Version ==="
           java -version
 
-          echo "=== Installed Gradle version ==="
-          gradle --version
+          echo "=== Gradle Wrapper Properties ==="
+          cat gradle/wrapper/gradle-wrapper.properties
 
-          # Generate wrapper files if the ZIP does not contain them.
-          if [ ! -f gradlew ] || \
-             [ ! -f gradle/wrapper/gradle-wrapper.jar ] || \
-             [ ! -f gradle/wrapper/gradle-wrapper.properties ]; then
-
-            echo "Wrapper files missing; generating Gradle Wrapper..."
-
-            gradle wrapper --gradle-version "$TARGET_GRADLE"
+          if [ ! -f gradlew ]; then
+            echo "ERROR: gradlew tidak ditemukan di root project."
+            exit 1
           fi
 
-          # Force the wrapper distribution URL to the requested version.
-          # Remove an old checksum because it may belong to another version.
-          python3 - <<'PY'
-          from pathlib import Path
-
-          target = "9.3.1"
-          wrapper_dir = Path("gradle/wrapper")
-          properties = wrapper_dir / "gradle-wrapper.properties"
-
-          wrapper_dir.mkdir(parents=True, exist_ok=True)
-
-          if properties.exists():
-              lines = properties.read_text(encoding="utf-8").splitlines()
-          else:
-              lines = []
-
-          updated = []
-          found_url = False
-
-          for line in lines:
-              if line.startswith("distributionUrl="):
-                  if not found_url:
-                      updated.append(
-                          "distributionUrl=https\\://services.gradle.org/distributions/"
-                          f"gradle-{target}-bin.zip"
-                      )
-                      found_url = True
-                  continue
-
-              if line.startswith("distributionSha256Sum="):
-                  continue
-
-              updated.append(line)
-
-          if not found_url:
-              updated.append(
-                  "distributionUrl=https\\://services.gradle.org/distributions/"
-                  f"gradle-{target}-bin.zip"
-              )
-
-          properties.write_text(
-              "\n".join(updated) + "\n",
-              encoding="utf-8"
-          )
-
-          print("Updated:", properties)
-          print(properties.read_text(encoding="utf-8"))
-          PY
+          if [ ! -f gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "ERROR: gradle-wrapper.jar tidak ditemukan."
+            echo "Workflow tidak akan membuat atau memperbaiki Wrapper otomatis."
+            exit 1
+          fi
 
           chmod +x gradlew
 
-          echo "=== Verify Gradle Wrapper ==="
+          echo "=== Gradle Version ==="
           ./gradlew --version
 
-          echo "=== Verify Java ==="
-          java -version
-
-      - name: Build APK
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
+          echo "=== Build Debug APK ==="
           ./gradlew assembleDebug --stacktrace --info
 
       - uses: actions/upload-artifact@v4
         with:
-          name: notes-priv-apk
+          name: netas-notes-apk
           path: ${{ steps.find.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          
