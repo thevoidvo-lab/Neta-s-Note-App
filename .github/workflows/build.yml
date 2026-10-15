@@ -150,7 +150,7 @@ jobs:
           }
           EOF
 
-      - name: Patch import
+      - name: Patch import calculatePan/Zoom/Rotation
         working-directory: ${{ steps.find.outputs.path }}
         run: |
           for f in $(find . -name "CanvasView.kt" -o -name "ElementView.kt"); do
@@ -158,6 +158,44 @@ jobs:
             sed -i 's|import androidx.compose.ui.input.pointer.calculateZoom|import androidx.compose.foundation.gestures.calculateZoom|g' "$f"
             sed -i 's|import androidx.compose.ui.input.pointer.calculateRotation|import androidx.compose.foundation.gestures.calculateRotation|g' "$f"
           done
+
+      - name: Patch xmlns:app di SEMUA XML
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          # cari semua XML di res/layout, res/menu, res/drawable, res/xml, res/navigation
+          for dir in layout menu drawable xml navigation; do
+            if [ -d "app/src/main/res/$dir" ]; then
+              for f in $(find "app/src/main/res/$dir" -name "*.xml" -type f); do
+                if grep -q "app:" "$f" && ! grep -q "xmlns:app=" "$f"; then
+                  echo "=== patch: $f ==="
+                  # tambahin xmlns:app setelah baris yang ada xmlns:android
+                  LINE=$(grep -n "xmlns:android" "$f" | head -n 1 | cut -d: -f1)
+                  if [ -n "$LINE" ]; then
+                    sed -i "${LINE}a\\    xmlns:app=\"http://schemas.android.com/apk/res-auto\"" "$f"
+                    echo "  -> ditambah xmlns:app di baris $LINE"
+                  else
+                    # kalo ga ada xmlns:android, tambahin di baris ke-2 (setelah <?xml ...)
+                    sed -i '2i\\    xmlns:app="http://schemas.android.com/apk/res-auto"' "$f"
+                    echo "  -> ditambah xmlns:app di baris 2"
+                  fi
+                fi
+              done
+            fi
+          done
+          echo "=== file yang udah ada xmlns:app ==="
+          grep -rl "xmlns:app=" app/src/main/res/ 2>/dev/null | head -20 || echo "none"
+
+      - name: Print activity_note_list.xml
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          F=$(find . -name "activity_note_list.xml" | head -n 1)
+          if [ -n "$F" ]; then
+            echo "=== FILE: $F ==="
+            echo "=== baris 1-15 (root) ==="
+            sed -n '1,15p' "$F"
+            echo "=== baris 30-45 (error) ==="
+            sed -n '30,45p' "$F"
+          fi
 
       - name: Generate keystore
         working-directory: ${{ steps.find.outputs.path }}
