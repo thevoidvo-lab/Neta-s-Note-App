@@ -27,57 +27,86 @@ jobs:
           rm -rf .gradle build app/build .idea local.properties
           find . -name "*.class" -delete
 
-      - name: Fix app/build.gradle
+      - name: Generate ulang app/build.gradle
         working-directory: ${{ steps.find.outputs.path }}
         run: |
-          F=app/build.gradle
-          echo "=== SEBELUM ==="
-          cat "$F"
+          cat > app/build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application'
+              id 'org.jetbrains.kotlin.android'
+              id 'com.google.devtools.ksp'
+          }
 
-          # hapus baris plugin kotlin dobel
-          sed -i "/apply plugin: ['\"]kotlin-android['\"]/d" "$F"
-          sed -i "/apply plugin: ['\"]org.jetbrains.kotlin.android['\"]/d" "$F"
-          sed -i "/id ['\"]org.jetbrains.kotlin.android['\"]/d" "$F"
-          sed -i "/id ['\"]kotlin-android['\"]/d" "$F"
+          android {
+              namespace 'com.example.notesapp'
+              compileSdk 34
 
-          # hapus baris kosong berlebih di awal
-          sed -i '/^[[:space:]]*$/N;/^\n$/D' "$F"
+              defaultConfig {
+                  applicationId "com.example.notesapp"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
 
-          echo "=== SESUDAH ==="
-          cat "$F"
-          echo "=== END ==="
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  }
+              }
 
-      - name: Fix package name & app name (Claude)
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+
+              kotlinOptions {
+                  jvmTarget = '17'
+              }
+
+              buildFeatures {
+                  compose true
+              }
+
+              composeOptions {
+                  kotlinCompilerExtensionVersion '1.5.14'
+              }
+          }
+
+          dependencies {
+              implementation 'androidx.core:core-ktx:1.12.0'
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.11.0'
+              implementation 'androidx.activity:activity-compose:1.8.2'
+              implementation 'androidx.compose.ui:ui:1.6.0'
+              implementation 'androidx.compose.material3:material3:1.2.0'
+              implementation 'androidx.compose.ui:ui-tooling-preview:1.6.0'
+              implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.7.0'
+              implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0'
+              implementation 'androidx.navigation:navigation-compose:2.7.6'
+              implementation 'androidx.room:room-runtime:2.6.1'
+              implementation 'androidx.room:room-ktx:2.6.1'
+              ksp 'androidx.room:room-compiler:2.6.1'
+              implementation 'androidx.datastore:datastore-preferences:1.0.0'
+              implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+              implementation 'io.coil-kt:coil-compose:2.5.0'
+              implementation 'com.google.code.gson:gson:2.10.1'
+              implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+          }
+          EOF
+          echo "=== app/build.gradle ==="
+          cat app/build.gradle
+
+      - name: Patch import calculatePan/Zoom/Rotation
         working-directory: ${{ steps.find.outputs.path }}
         run: |
-          NEWPKG="com.example.notesappclaude"
-          NEWNAME="Neta's Notes"
-
-          for F in $(find . -name "build.gradle" -o -name "build.gradle.kts"); do
-            sed -i "s|com\.example\.notesapp|$NEWPKG|g" "$F"
+          for f in $(find . -name "CanvasView.kt" -o -name "ElementView.kt"); do
+            sed -i 's|import androidx.compose.ui.input.pointer.calculatePan|import androidx.compose.foundation.gestures.calculatePan|g' "$f"
+            sed -i 's|import androidx.compose.ui.input.pointer.calculateZoom|import androidx.compose.foundation.gestures.calculateZoom|g' "$f"
+            sed -i 's|import androidx.compose.ui.input.pointer.calculateRotation|import androidx.compose.foundation.gestures.calculateRotation|g' "$f"
+            echo "patched: $f"
           done
-
-          for F in $(find . -name "*.kt" -type f); do
-            sed -i "s|^package com\.example\.notesapp|package $NEWPKG|g" "$F"
-            sed -i "s|com\.example\.notesapp|$NEWPKG|g" "$F"
-          done
-
-          OLD_DIR=$(find app/src/main/java -type d -name "notesapp" | head -n 1)
-          if [ -n "$OLD_DIR" ]; then
-            NEW_DIR=$(echo "$OLD_DIR" | sed "s|/notesapp$|/notesappclaude|")
-            mv "$OLD_DIR" "$NEW_DIR"
-          fi
-
-          for F in $(find . -name "strings.xml"); do
-            sed -i "s|<string name=\"app_name\">.*</string>|<string name=\"app_name\">$NEWNAME</string>|g" "$F"
-          done
-
-          echo "=== cek package ==="
-          grep -rn "package com.example" app/src/main/java | head -5 || true
-          echo "=== cek applicationId ==="
-          grep -rn "applicationId\|namespace" app/build.gradle* | head -5 || true
-          echo "=== cek app_name ==="
-          grep -rn "app_name" app/src/main/res/values/strings.xml || true
 
       - name: Generate debug.keystore
         working-directory: ${{ steps.find.outputs.path }}
