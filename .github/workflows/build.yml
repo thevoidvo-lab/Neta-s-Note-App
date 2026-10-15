@@ -1,83 +1,83 @@
 name: Build Neta's Notes APK
 on: [push, workflow_dispatch]
 jobs:
-build:
-runs-on: ubuntu-latest
-steps:
-- uses: actions/checkout@v4
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-- name: Install unzip + curl  
-    run: sudo apt-get update && sudo apt-get install -y unzip curl  
+      - name: Install unzip + curl
+        run: sudo apt-get update && sudo apt-get install -y unzip curl
 
-  - name: Extract ZIP  
-    run: |  
-      ZIP=$(find . -name "*.zip" | head -n 1)  
-      unzip -o "$ZIP" -d extracted  
+      - name: Extract ZIP
+        run: |
+          ZIP=$(find . -name "*.zip" | head -n 1)
+          unzip -o "$ZIP" -d extracted
 
-  - name: Cari project root  
-    id: find  
-    run: |  
-      SETTINGS=$(find extracted -name "settings.gradle*" -type f | head -n 1)  
-      DIR=$(dirname "$SETTINGS")  
-      echo "path=$DIR" >> $GITHUB_OUTPUT  
+      - name: Cari project root
+        id: find
+        run: |
+          SETTINGS=$(find extracted -name "settings.gradle*" -type f | head -n 1)
+          DIR=$(dirname "$SETTINGS")
+          echo "path=$DIR" >> $GITHUB_OUTPUT
 
-  - name: Bersihin file corrupt  
-    working-directory: ${{ steps.find.outputs.path }}  
-    run: |  
-      rm -rf .gradle build app/build .idea local.properties  
-      find . -name "*.class" -delete  
+      - name: Bersihin file corrupt
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          rm -rf .gradle build app/build .idea local.properties
+          find . -name "*.class" -delete
 
-  - name: Patch import calculatePan/Zoom/Rotation  
-    working-directory: ${{ steps.find.outputs.path }}  
-    run: |  
-      for f in $(find . -name "CanvasView.kt" -o -name "ElementView.kt"); do  
-        sed -i 's|import androidx.compose.ui.input.pointer.calculatePan|import androidx.compose.foundation.gestures.calculatePan|g' "$f"  
-        sed -i 's|import androidx.compose.ui.input.pointer.calculateZoom|import androidx.compose.foundation.gestures.calculateZoom|g' "$f"  
-        sed -i 's|import androidx.compose.ui.input.pointer.calculateRotation|import androidx.compose.foundation.gestures.calculateRotation|g' "$f"  
-        echo "=== $f ==="  
-        grep -n "calculate" "$f" || true  
-      done  
+      - name: Patch import calculatePan/Zoom/Rotation
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          for f in $(find . -name "CanvasView.kt" -o -name "ElementView.kt"); do
+            sed -i 's|import androidx.compose.ui.input.pointer.calculatePan|import androidx.compose.foundation.gestures.calculatePan|g' "$f"
+            sed -i 's|import androidx.compose.ui.input.pointer.calculateZoom|import androidx.compose.foundation.gestures.calculateZoom|g' "$f"
+            sed -i 's|import androidx.compose.ui.input.pointer.calculateRotation|import androidx.compose.foundation.gestures.calculateRotation|g' "$f"
+            echo "=== $f ==="
+            grep -n "calculate" "$f" || true
+          done
 
-  - name: Cek baris 155-180 CanvasView  
-    working-directory: ${{ steps.find.outputs.path }}  
-    run: |  
-      F=$(find . -name "CanvasView.kt" | head -n 1)  
-      echo "=== FILE: $F ==="  
-      echo "=== baris 155-180 ==="  
-      sed -n '155,180p' "$F"  
+      - name: Cek baris 155-180 CanvasView
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          F=$(find . -name "CanvasView.kt" | head -n 1)
+          echo "=== FILE: $F ==="
+          echo "=== baris 155-180 ==="
+          sed -n '155,180p' "$F"
 
-  - name: Generate debug.keystore  
-    working-directory: ${{ steps.find.outputs.path }}  
-    run: |  
-      keytool -genkeypair -v \  
-        -keystore debug.keystore \  
-        -storepass android \  
-        -alias androiddebugkey \  
-        -keypass android \  
-        -keyalg RSA \  
-        -keysize 2048 \  
-        -validity 10000 \  
-        -dname "CN=Android Debug,O=Android,C=US"  
-      cp debug.keystore app/debug.keystore 2>/dev/null || true  
+      - name: Generate debug.keystore
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          keytool -genkeypair -v \
+            -keystore debug.keystore \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+          cp debug.keystore app/debug.keystore 2>/dev/null || true
 
-  - uses: actions/setup-java@v4  
-    with:  
-      java-version: '21'  
-      distribution: 'temurin'  
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
 
-  - name: Setup Gradle  
-    uses: gradle/gradle-build-action@v2  
-    with:  
-      gradle-version: 9.3.1  
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: 9.3.1
 
-  - name: Build APK  
-    working-directory: ${{ steps.find.outputs.path }}  
-    run: |  
-      gradle wrapper --gradle-version 9.3.1  
-      chmod +x gradlew  
-      ./gradlew assembleDebug --stacktrace --info  
+      - name: Build APK
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          gradle wrapper --gradle-version 9.3.1
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace --info
 
-  - uses: actions/upload-artifact@v4  
-    with:  
-      name: notes-priv-apk  
-      path: ${{ steps.find.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: notes-priv-apk
+          path: ${{ steps.find.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
