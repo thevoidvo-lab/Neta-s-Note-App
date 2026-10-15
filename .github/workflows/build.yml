@@ -1,8 +1,12 @@
+
 name: Build Notes Priv APK
+
 on: [push, workflow_dispatch]
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -12,14 +16,30 @@ jobs:
       - name: Extract ZIP
         run: |
           ZIP=$(find . -name "*.zip" | head -n 1)
+
+          if [ -z "$ZIP" ]; then
+            echo "ERROR: File ZIP tidak ditemukan!"
+            exit 1
+          fi
+
+          echo "Extracting: $ZIP"
           unzip -o "$ZIP" -d extracted
 
       - name: Cari project root
         id: find
+        shell: bash
         run: |
-          SETTINGS=$(find extracted -name "settings.gradle*" -type f | head -n 1)
+          SETTINGS=$(find extracted -name "settings.gradle" -o -name "settings.gradle.kts" | head -n 1)
+
+          if [ -z "$SETTINGS" ]; then
+            echo "ERROR: settings.gradle tidak ditemukan!"
+            exit 1
+          fi
+
           DIR=$(dirname "$SETTINGS")
-          echo "path=$DIR" >> $GITHUB_OUTPUT
+          echo "path=$DIR" >> "$GITHUB_OUTPUT"
+
+          echo "Project root: $DIR"
 
       - name: Bersihin file corrupt
         working-directory: ${{ steps.find.outputs.path }}
@@ -29,19 +49,36 @@ jobs:
 
       - name: Patch import calculatePan/Zoom/Rotation
         working-directory: ${{ steps.find.outputs.path }}
+        shell: bash
         run: |
-          for f in $(find . -name "CanvasView.kt" -o -name "ElementView.kt"); do
-            sed -i 's|import androidx.compose.ui.input.pointer.calculatePan|import androidx.compose.foundation.gestures.calculatePan|g' "$f"
-            sed -i 's|import androidx.compose.ui.input.pointer.calculateZoom|import androidx.compose.foundation.gestures.calculateZoom|g' "$f"
-            sed -i 's|import androidx.compose.ui.input.pointer.calculateRotation|import androidx.compose.foundation.gestures.calculateRotation|g' "$f"
+          while IFS= read -r -d '' f; do
+            sed -i \
+              's|import androidx.compose.ui.input.pointer.calculatePan|import androidx.compose.foundation.gestures.calculatePan|g' \
+              "$f"
+
+            sed -i \
+              's|import androidx.compose.ui.input.pointer.calculateZoom|import androidx.compose.foundation.gestures.calculateZoom|g' \
+              "$f"
+
+            sed -i \
+              's|import androidx.compose.ui.input.pointer.calculateRotation|import androidx.compose.foundation.gestures.calculateRotation|g' \
+              "$f"
+
             echo "=== $f ==="
             grep -n "calculate" "$f" || true
-          done
+          done < <(find . \( -name "CanvasView.kt" -o -name "ElementView.kt" \) -print0)
 
       - name: Cek baris 155-180 CanvasView
         working-directory: ${{ steps.find.outputs.path }}
+        shell: bash
         run: |
           F=$(find . -name "CanvasView.kt" | head -n 1)
+
+          if [ -z "$F" ]; then
+            echo "CanvasView.kt tidak ditemukan."
+            exit 0
+          fi
+
           echo "=== FILE: $F ==="
           echo "=== baris 155-180 ==="
           sed -n '155,180p' "$F"
@@ -58,9 +95,11 @@ jobs:
             -keysize 2048 \
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
+
           cp debug.keystore app/debug.keystore 2>/dev/null || true
 
-      - uses: actions/setup-java@v4
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -68,13 +107,92 @@ jobs:
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          gradle-version: 9.3.1
+          gradle-version: '9.3.1'
+
+      - name: Auto-fix Gradle Wrapper to 9.3.1
+        working-directory: ${{ steps.find.outputs.path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TARGET_GRADLE="9.3.1"
+
+          echo "=== Java version ==="
+          java -version
+
+          echo "=== Installed Gradle version ==="
+          gradle --version
+
+          # Generate wrapper files if the ZIP does not contain them.
+          if [ ! -f gradlew ] || \
+             [ ! -f gradle/wrapper/gradle-wrapper.jar ] || \
+             [ ! -f gradle/wrapper/gradle-wrapper.properties ]; then
+
+            echo "Wrapper files missing; generating Gradle Wrapper..."
+
+            gradle wrapper --gradle-version "$TARGET_GRADLE"
+          fi
+
+          # Force the wrapper distribution URL to the requested version.
+          # Remove an old checksum because it may belong to another version.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          target = "9.3.1"
+          wrapper_dir = Path("gradle/wrapper")
+          properties = wrapper_dir / "gradle-wrapper.properties"
+
+          wrapper_dir.mkdir(parents=True, exist_ok=True)
+
+          if properties.exists():
+              lines = properties.read_text(encoding="utf-8").splitlines()
+          else:
+              lines = []
+
+          updated = []
+          found_url = False
+
+          for line in lines:
+              if line.startswith("distributionUrl="):
+                  if not found_url:
+                      updated.append(
+                          "distributionUrl=https\\://services.gradle.org/distributions/"
+                          f"gradle-{target}-bin.zip"
+                      )
+                      found_url = True
+                  continue
+
+              if line.startswith("distributionSha256Sum="):
+                  continue
+
+              updated.append(line)
+
+          if not found_url:
+              updated.append(
+                  "distributionUrl=https\\://services.gradle.org/distributions/"
+                  f"gradle-{target}-bin.zip"
+              )
+
+          properties.write_text(
+              "\n".join(updated) + "\n",
+              encoding="utf-8"
+          )
+
+          print("Updated:", properties)
+          print(properties.read_text(encoding="utf-8"))
+          PY
+
+          chmod +x gradlew
+
+          echo "=== Verify Gradle Wrapper ==="
+          ./gradlew --version
+
+          echo "=== Verify Java ==="
+          java -version
 
       - name: Build APK
         working-directory: ${{ steps.find.outputs.path }}
         run: |
-          gradle wrapper --gradle-version 9.3.1
-          chmod +x gradlew
           ./gradlew assembleDebug --stacktrace --info
 
       - uses: actions/upload-artifact@v4
