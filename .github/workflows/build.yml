@@ -1,227 +1,64 @@
-name: Build Neta's Notes APK
-on: [push, workflow_dispatch]
+name: Build APK (Custom Package)
+on:
+  workflow_dispatch:
+    inputs:
+      package_name:
+        description: 'Package name (misal: com.example.notespriv)'
+        required: true
+        default: 'com.example.notesapp'
+      app_name:
+        description: 'Nama app (misal: Notes Priv)'
+        required: true
+        default: "Neta's Notes"
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install tools
-        run: sudo apt-get update && sudo apt-get install -y unzip curl
-
-      - name: Extract ZIP
-        run: |
-          ZIP=$(find . -name "*.zip" | head -n 1)
-          if [ -z "$ZIP" ]; then echo "zip ga ketemu"; exit 1; fi
-          unzip -o "$ZIP" -d extracted
-
-      - name: Cari project root
-        id: find
-        run: |
-          S=$(find extracted -name "settings.gradle*" -type f | head -n 1)
-          if [ -z "$S" ]; then
-            S=$(find extracted -path "*/app/build.gradle*" | head -n 1)
-            DIR=$(dirname $(dirname "$S"))
-          else
-            DIR=$(dirname "$S")
-          fi
-          echo "path=$DIR" >> $GITHUB_OUTPUT
-          echo "project root: $DIR"
-
-      - name: Bersihin
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          rm -rf .gradle build app/build .idea local.properties
-          find . -name "*.class" -delete
-
-      - name: Tulis settings.gradle
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          cat > settings.gradle << 'EOF'
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "Neta's Notes"
-          include ':app'
-          EOF
-
-      - name: Tulis root build.gradle
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          cat > build.gradle << 'EOF'
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.7.2'
-                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21'
-                  classpath 'org.jetbrains.kotlin:compose-compiler-gradle-plugin:2.0.21'
-              }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          tasks.register('clean', Delete) {
-              delete rootProject.buildDir
-          }
-          EOF
-
-      - name: Tulis app/build.gradle
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          cat > app/build.gradle << 'EOF'
-          apply plugin: 'com.android.application'
-          apply plugin: 'org.jetbrains.kotlin.android'
-          apply plugin: 'org.jetbrains.kotlin.plugin.compose'
-          apply plugin: 'kotlin-kapt'
-
-          android {
-              namespace 'com.example.notesapp'
-              compileSdk 34
-
-              defaultConfig {
-                  applicationId "com.example.notesapp"
-                  minSdk 24
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-
-              buildTypes {
-                  release {
-                      minifyEnabled false
-                  }
-              }
-
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-
-              kotlinOptions {
-                  jvmTarget = '17'
-              }
-
-              buildFeatures {
-                  compose true
-              }
-          }
-
-          dependencies {
-              def composeBom = platform('androidx.compose:compose-bom:2024.09.00')
-              implementation composeBom
-              androidTestImplementation composeBom
-
-              implementation 'androidx.core:core-ktx:1.12.0'
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-              implementation 'com.google.android.material:material:1.11.0'
-              implementation 'androidx.activity:activity-compose:1.8.2'
-              implementation 'androidx.compose.ui:ui'
-              implementation 'androidx.compose.material3:material3'
-              implementation 'androidx.compose.ui:ui-tooling-preview'
-              debugImplementation 'androidx.compose.ui:ui-tooling'
-              implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.7.0'
-              implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0'
-              implementation 'androidx.navigation:navigation-compose:2.7.6'
-              implementation 'androidx.room:room-runtime:2.6.1'
-              implementation 'androidx.room:room-ktx:2.6.1'
-              kapt 'androidx.room:room-compiler:2.6.1'
-              implementation 'androidx.datastore:datastore-preferences:1.0.0'
-              implementation 'androidx.security:security-crypto:1.1.0-alpha06'
-              implementation 'io.coil-kt:coil-compose:2.5.0'
-              implementation 'com.google.code.gson:gson:2.10.1'
-              implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
-          }
-          EOF
-
-      - name: Patch import calculatePan/Zoom/Rotation
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          for f in $(find . -name "CanvasView.kt" -o -name "ElementView.kt"); do
-            sed -i 's|import androidx.compose.ui.input.pointer.calculatePan|import androidx.compose.foundation.gestures.calculatePan|g' "$f"
-            sed -i 's|import androidx.compose.ui.input.pointer.calculateZoom|import androidx.compose.foundation.gestures.calculateZoom|g' "$f"
-            sed -i 's|import androidx.compose.ui.input.pointer.calculateRotation|import androidx.compose.foundation.gestures.calculateRotation|g' "$f"
-          done
-
-      - name: Patch xmlns:app di SEMUA XML
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          # cari semua XML di res/layout, res/menu, res/drawable, res/xml, res/navigation
-          for dir in layout menu drawable xml navigation; do
-            if [ -d "app/src/main/res/$dir" ]; then
-              for f in $(find "app/src/main/res/$dir" -name "*.xml" -type f); do
-                if grep -q "app:" "$f" && ! grep -q "xmlns:app=" "$f"; then
-                  echo "=== patch: $f ==="
-                  # tambahin xmlns:app setelah baris yang ada xmlns:android
-                  LINE=$(grep -n "xmlns:android" "$f" | head -n 1 | cut -d: -f1)
-                  if [ -n "$LINE" ]; then
-                    sed -i "${LINE}a\\    xmlns:app=\"http://schemas.android.com/apk/res-auto\"" "$f"
-                    echo "  -> ditambah xmlns:app di baris $LINE"
-                  else
-                    # kalo ga ada xmlns:android, tambahin di baris ke-2 (setelah <?xml ...)
-                    sed -i '2i\\    xmlns:app="http://schemas.android.com/apk/res-auto"' "$f"
-                    echo "  -> ditambah xmlns:app di baris 2"
-                  fi
-                fi
-              done
-            fi
-          done
-          echo "=== file yang udah ada xmlns:app ==="
-          grep -rl "xmlns:app=" app/src/main/res/ 2>/dev/null | head -20 || echo "none"
-
-      - name: Print activity_note_list.xml
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          F=$(find . -name "activity_note_list.xml" | head -n 1)
-          if [ -n "$F" ]; then
-            echo "=== FILE: $F ==="
-            echo "=== baris 1-15 (root) ==="
-            sed -n '1,15p' "$F"
-            echo "=== baris 30-45 (error) ==="
-            sed -n '30,45p' "$F"
-          fi
-
-      - name: Generate keystore
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          cp debug.keystore app/debug.keystore 2>/dev/null || true
-
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/gradle-build-action@v2
-        with:
-          gradle-version: 8.9
-
-      - name: Build APK
-        working-directory: ${{ steps.find.outputs.path }}
+      - name: Patch package name
+        working-directory: NetaNotes
         run: |
-          gradle wrapper --gradle-version 8.9
+          NEWPKG="${{ github.event.inputs.package_name }}"
+          NEWNAME="${{ github.event.inputs.app_name }}"
+
+          # ganti di app/build.gradle
+          sed -i "s|namespace 'com.example.notesapp'|namespace '$NEWPKG'|g" app/build.gradle
+          sed -i "s|applicationId \"com.example.notesapp\"|applicationId \"$NEWPKG\"|g" app/build.gradle
+
+          # ganti di semua file .kt
+          find app/src/main/java -name "*.kt" -exec sed -i "s|package com.example.notesapp|package $NEWPKG|g" {} \;
+          find app/src/main/java -name "*.kt" -exec sed -i "s|com.example.notesapp|$NEWPKG|g" {} \;
+
+          # pindahin folder java
+          OLD_DIR=$(find app/src/main/java -type d -name "notesapp" | head -n 1)
+          if [ -n "$OLD_DIR" ]; then
+            PARENT=$(dirname "$OLD_DIR")
+            NEW_DIR="$PARENT/notespriv"
+            mv "$OLD_DIR" "$NEW_DIR"
+          fi
+
+          # ganti app_name di strings.xml
+          sed -i "s|<string name=\"app_name\">.*</string>|<string name=\"app_name\">$NEWNAME</string>|g" app/src/main/res/values/strings.xml
+
+          echo "=== cek hasil patch ==="
+          grep -n "namespace\|applicationId" app/build.gradle | head -5
+          grep -rn "^package" app/src/main/java | head -3
+          grep -n "app_name" app/src/main/res/values/strings.xml
+
+      - name: Build
+        working-directory: NetaNotes
+        run: |
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: netas-notes-apk
-          path: ${{ steps.find.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
+          name: netas-notes-apk-${{ github.event.inputs.package_name }}
+          path: NetaNotes/app/build/outputs/apk/debug/app-debug.apk
