@@ -18,6 +18,20 @@ jobs:
           curl -L -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.9.0/gradle/wrapper/gradle-wrapper.jar
           ls -la gradle/wrapper/
 
+      - name: Patch xmlns:app
+        working-directory: NetaNotes
+        run: |
+          for f in $(find app/src/main/res/layout -name "*.xml"); do
+            if grep -q "app:" "$f" && ! grep -q "xmlns:app=" "$f"; then
+              echo "patch: $f"
+              LINE=$(grep -n "xmlns:android" "$f" | head -n 1 | cut -d: -f1)
+              if [ -n "$LINE" ]; then
+                sed -i "${LINE}a\\    xmlns:app=\"http://schemas.android.com/apk/res-auto\"" "$f"
+              fi
+            fi
+          done
+          grep -l "xmlns:app=" app/src/main/res/layout/*.xml || echo "ga ada yang dipatch"
+
       - name: Build
         working-directory: NetaNotes
         run: |
@@ -29,17 +43,3 @@ jobs:
         with:
           name: netas-notes-apk
           path: NetaNotes/app/build/outputs/apk/debug/app-debug.apk
-
-        - name: Patch xmlns:app
-  working-directory: NetaNotes
-  run: |
-    for f in $(find app/src/main/res/layout -name "*.xml"); do
-      if grep -q "app:" "$f" && ! grep -q "xmlns:app=" "$f"; then
-        echo "patch: $f"
-        LINE=$(grep -n "xmlns:android" "$f" | head -n 1 | cut -d: -f1)
-        if [ -n "$LINE" ]; then
-          sed -i "${LINE}a\\    xmlns:app=\"http://schemas.android.com/apk/res-auto\"" "$f"
-        fi
-      fi
-    done
-    grep -l "xmlns:app=" app/src/main/res/layout/*.xml || echo "ga ada yang dipatch"
