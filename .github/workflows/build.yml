@@ -1,4 +1,4 @@
-name: Build Neta's Notes (Claude)
+name: Build Neta's Notes APK
 on: [push, workflow_dispatch]
 jobs:
   build:
@@ -21,48 +21,63 @@ jobs:
           DIR=$(dirname "$SETTINGS")
           echo "path=$DIR" >> $GITHUB_OUTPUT
 
-      - name: Patch package name & app name (Claude)
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          NEWPKG="com.example.notesappclaude"
-          NEWNAME="Neta's Notes (Claude)"
-
-          # 1. patch app/build.gradle
-          for F in $(find . -name "build.gradle" -o -name "build.gradle.kts"); do
-            sed -i "s|com\.example\.notesapp|$NEWPKG|g" "$F"
-          done
-
-          # 2. patch semua .kt
-          for F in $(find . -name "*.kt" -type f); do
-            sed -i "s|^package com\.example\.notesapp|package $NEWPKG|g" "$F"
-            sed -i "s|com\.example\.notesapp|$NEWPKG|g" "$F"
-          done
-
-          # 3. pindahin folder java (notesapp -> notesappclaude)
-          OLD_DIR=$(find app/src/main/java -type d -name "notesapp" | head -n 1)
-          if [ -n "$OLD_DIR" ]; then
-            NEW_DIR=$(echo "$OLD_DIR" | sed "s|/notesapp$|/notesappclaude|")
-            mv "$OLD_DIR" "$NEW_DIR"
-            echo "pindah folder: $OLD_DIR -> $NEW_DIR"
-          fi
-
-          # 4. patch strings.xml
-          for F in $(find . -name "strings.xml"); do
-            sed -i "s|<string name=\"app_name\">.*</string>|<string name=\"app_name\">$NEWNAME</string>|g" "$F"
-          done
-
-          echo "=== cek package ==="
-          grep -rn "package com.example" app/src/main/java | head -5
-          echo "=== cek applicationId ==="
-          grep -rn "applicationId\|namespace" app/build.gradle* | head -5
-          echo "=== cek app_name ==="
-          grep -rn "app_name" app/src/main/res/values/strings.xml
-
       - name: Bersihin file corrupt
         working-directory: ${{ steps.find.outputs.path }}
         run: |
           rm -rf .gradle build app/build .idea local.properties
           find . -name "*.class" -delete
+
+      - name: Fix app/build.gradle
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          F=app/build.gradle
+          echo "=== SEBELUM ==="
+          cat "$F"
+
+          # hapus baris plugin kotlin dobel
+          sed -i "/apply plugin: ['\"]kotlin-android['\"]/d" "$F"
+          sed -i "/apply plugin: ['\"]org.jetbrains.kotlin.android['\"]/d" "$F"
+          sed -i "/id ['\"]org.jetbrains.kotlin.android['\"]/d" "$F"
+          sed -i "/id ['\"]kotlin-android['\"]/d" "$F"
+
+          # hapus baris kosong berlebih di awal
+          sed -i '/^[[:space:]]*$/N;/^\n$/D' "$F"
+
+          echo "=== SESUDAH ==="
+          cat "$F"
+          echo "=== END ==="
+
+      - name: Fix package name & app name (Claude)
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          NEWPKG="com.example.notesappclaude"
+          NEWNAME="Neta's Notes"
+
+          for F in $(find . -name "build.gradle" -o -name "build.gradle.kts"); do
+            sed -i "s|com\.example\.notesapp|$NEWPKG|g" "$F"
+          done
+
+          for F in $(find . -name "*.kt" -type f); do
+            sed -i "s|^package com\.example\.notesapp|package $NEWPKG|g" "$F"
+            sed -i "s|com\.example\.notesapp|$NEWPKG|g" "$F"
+          done
+
+          OLD_DIR=$(find app/src/main/java -type d -name "notesapp" | head -n 1)
+          if [ -n "$OLD_DIR" ]; then
+            NEW_DIR=$(echo "$OLD_DIR" | sed "s|/notesapp$|/notesappclaude|")
+            mv "$OLD_DIR" "$NEW_DIR"
+          fi
+
+          for F in $(find . -name "strings.xml"); do
+            sed -i "s|<string name=\"app_name\">.*</string>|<string name=\"app_name\">$NEWNAME</string>|g" "$F"
+          done
+
+          echo "=== cek package ==="
+          grep -rn "package com.example" app/src/main/java | head -5 || true
+          echo "=== cek applicationId ==="
+          grep -rn "applicationId\|namespace" app/build.gradle* | head -5 || true
+          echo "=== cek app_name ==="
+          grep -rn "app_name" app/src/main/res/values/strings.xml || true
 
       - name: Generate debug.keystore
         working-directory: ${{ steps.find.outputs.path }}
@@ -97,5 +112,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: netas-notes-claude
+          name: netas-notes-apk
           path: ${{ steps.find.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
