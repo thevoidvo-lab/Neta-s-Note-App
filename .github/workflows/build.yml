@@ -27,6 +27,19 @@ jobs:
           rm -rf .gradle build app/build .idea local.properties
           find . -name "*.class" -delete
 
+      - name: Generate root build.gradle
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          cat > build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application' version '9.1.1' apply false
+              id 'com.android.library' version '9.1.1' apply false
+              id 'org.jetbrains.kotlin.android' version '2.2.10' apply false
+              id 'com.google.devtools.ksp' version '2.2.10-1.0.28' apply false
+          }
+          EOF
+          cat build.gradle
+
       - name: Generate ulang app/build.gradle
         working-directory: ${{ steps.find.outputs.path }}
         run: |
@@ -95,7 +108,6 @@ jobs:
               implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
           }
           EOF
-          echo "=== app/build.gradle ==="
           cat app/build.gradle
 
       - name: Patch import calculatePan/Zoom/Rotation
@@ -105,7 +117,6 @@ jobs:
             sed -i 's|import androidx.compose.ui.input.pointer.calculatePan|import androidx.compose.foundation.gestures.calculatePan|g' "$f"
             sed -i 's|import androidx.compose.ui.input.pointer.calculateZoom|import androidx.compose.foundation.gestures.calculateZoom|g' "$f"
             sed -i 's|import androidx.compose.ui.input.pointer.calculateRotation|import androidx.compose.foundation.gestures.calculateRotation|g' "$f"
-            echo "patched: $f"
           done
 
       - name: Generate debug.keystore
