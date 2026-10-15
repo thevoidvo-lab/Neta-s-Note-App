@@ -1,4 +1,4 @@
-name: Build Neta's Notes APK
+name: Build Neta's Notes (Claude)
 on: [push, workflow_dispatch]
 jobs:
   build:
@@ -21,30 +21,48 @@ jobs:
           DIR=$(dirname "$SETTINGS")
           echo "path=$DIR" >> $GITHUB_OUTPUT
 
+      - name: Patch package name & app name (Claude)
+        working-directory: ${{ steps.find.outputs.path }}
+        run: |
+          NEWPKG="com.example.notesappclaude"
+          NEWNAME="Neta's Notes (Claude)"
+
+          # 1. patch app/build.gradle
+          for F in $(find . -name "build.gradle" -o -name "build.gradle.kts"); do
+            sed -i "s|com\.example\.notesapp|$NEWPKG|g" "$F"
+          done
+
+          # 2. patch semua .kt
+          for F in $(find . -name "*.kt" -type f); do
+            sed -i "s|^package com\.example\.notesapp|package $NEWPKG|g" "$F"
+            sed -i "s|com\.example\.notesapp|$NEWPKG|g" "$F"
+          done
+
+          # 3. pindahin folder java (notesapp -> notesappclaude)
+          OLD_DIR=$(find app/src/main/java -type d -name "notesapp" | head -n 1)
+          if [ -n "$OLD_DIR" ]; then
+            NEW_DIR=$(echo "$OLD_DIR" | sed "s|/notesapp$|/notesappclaude|")
+            mv "$OLD_DIR" "$NEW_DIR"
+            echo "pindah folder: $OLD_DIR -> $NEW_DIR"
+          fi
+
+          # 4. patch strings.xml
+          for F in $(find . -name "strings.xml"); do
+            sed -i "s|<string name=\"app_name\">.*</string>|<string name=\"app_name\">$NEWNAME</string>|g" "$F"
+          done
+
+          echo "=== cek package ==="
+          grep -rn "package com.example" app/src/main/java | head -5
+          echo "=== cek applicationId ==="
+          grep -rn "applicationId\|namespace" app/build.gradle* | head -5
+          echo "=== cek app_name ==="
+          grep -rn "app_name" app/src/main/res/values/strings.xml
+
       - name: Bersihin file corrupt
         working-directory: ${{ steps.find.outputs.path }}
         run: |
           rm -rf .gradle build app/build .idea local.properties
           find . -name "*.class" -delete
-
-      - name: Patch import calculatePan/Zoom/Rotation
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          for f in $(find . -name "CanvasView.kt" -o -name "ElementView.kt"); do
-            sed -i 's|import androidx.compose.ui.input.pointer.calculatePan|import androidx.compose.foundation.gestures.calculatePan|g' "$f"
-            sed -i 's|import androidx.compose.ui.input.pointer.calculateZoom|import androidx.compose.foundation.gestures.calculateZoom|g' "$f"
-            sed -i 's|import androidx.compose.ui.input.pointer.calculateRotation|import androidx.compose.foundation.gestures.calculateRotation|g' "$f"
-            echo "=== $f ==="
-            grep -n "calculate" "$f" || true
-          done
-
-      - name: Cek baris 155-180 CanvasView
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          F=$(find . -name "CanvasView.kt" | head -n 1)
-          echo "=== FILE: $F ==="
-          echo "=== baris 155-180 ==="
-          sed -n '155,180p' "$F"
 
       - name: Generate debug.keystore
         working-directory: ${{ steps.find.outputs.path }}
@@ -75,9 +93,9 @@ jobs:
         run: |
           gradle wrapper --gradle-version 9.3.1
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --info
+          ./gradlew assembleDebug --stacktrace
 
       - uses: actions/upload-artifact@v4
         with:
-          name: notes-priv-apk
+          name: netas-notes-claude
           path: ${{ steps.find.outputs.path }}/app/build/outputs/apk/debug/app-debug.apk
