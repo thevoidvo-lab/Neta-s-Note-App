@@ -62,18 +62,18 @@ jobs:
 
       - uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          gradle-version: 9.3.1
+          gradle-version: 8.0
 
       - name: Build APK
         working-directory: ${{ steps.find.outputs.path }}
         run: |
-          gradle wrapper --gradle-version 9.3.1
+          gradle wrapper --gradle-version 8.0
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace --info
 
