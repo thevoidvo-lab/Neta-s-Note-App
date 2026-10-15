@@ -20,7 +20,6 @@ jobs:
         run: |
           S=$(find extracted -name "settings.gradle*" -type f | head -n 1)
           if [ -z "$S" ]; then
-            # fallback: cari folder yang ada app/build.gradle
             S=$(find extracted -path "*/app/build.gradle*" | head -n 1)
             DIR=$(dirname $(dirname "$S"))
           else
@@ -28,7 +27,6 @@ jobs:
           fi
           echo "path=$DIR" >> $GITHUB_OUTPUT
           echo "project root: $DIR"
-          ls -la "$DIR"
 
       - name: Bersihin
         working-directory: ${{ steps.find.outputs.path }}
@@ -57,7 +55,6 @@ jobs:
           rootProject.name = "Neta's Notes"
           include ':app'
           EOF
-          cat settings.gradle
 
       - name: Tulis root build.gradle
         working-directory: ${{ steps.find.outputs.path }}
@@ -69,9 +66,8 @@ jobs:
                   mavenCentral()
               }
               dependencies {
-                  classpath 'com.android.tools.build:gradle:9.1.1'
-                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.10'
-                  classpath 'com.google.devtools.ksp:com.google.devtools.ksp.gradle.plugin:2.2.10-1.0.28'
+                  classpath 'com.android.tools.build:gradle:8.7.2'
+                  classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.0.21'
               }
           }
           allprojects {
@@ -84,7 +80,6 @@ jobs:
               delete rootProject.buildDir
           }
           EOF
-          cat build.gradle
 
       - name: Tulis app/build.gradle
         working-directory: ${{ steps.find.outputs.path }}
@@ -92,7 +87,7 @@ jobs:
           cat > app/build.gradle << 'EOF'
           apply plugin: 'com.android.application'
           apply plugin: 'org.jetbrains.kotlin.android'
-          apply plugin: 'com.google.devtools.ksp'
+          apply plugin: 'kotlin-kapt'
 
           android {
               namespace 'com.example.notesapp'
@@ -143,7 +138,7 @@ jobs:
               implementation 'androidx.navigation:navigation-compose:2.7.6'
               implementation 'androidx.room:room-runtime:2.6.1'
               implementation 'androidx.room:room-ktx:2.6.1'
-              ksp 'androidx.room:room-compiler:2.6.1'
+              kapt 'androidx.room:room-compiler:2.6.1'
               implementation 'androidx.datastore:datastore-preferences:1.0.0'
               implementation 'androidx.security:security-crypto:1.1.0-alpha06'
               implementation 'io.coil-kt:coil-compose:2.5.0'
@@ -151,9 +146,8 @@ jobs:
               implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
           }
           EOF
-          cat app/build.gradle
 
-      - name: Patch import calculatePan/Zoom/Rotation
+      - name: Patch import
         working-directory: ${{ steps.find.outputs.path }}
         run: |
           for f in $(find . -name "CanvasView.kt" -o -name "ElementView.kt"); do
@@ -170,30 +164,19 @@ jobs:
 
       - uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v2
         with:
-          gradle-version: 9.3.1
+          gradle-version: 8.9
 
       - name: Build APK
         working-directory: ${{ steps.find.outputs.path }}
         run: |
-          gradle wrapper --gradle-version 9.3.1
+          gradle wrapper --gradle-version 8.9
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
-
-      - name: Fallback build (tanpa KSP)
-        if: failure()
-        working-directory: ${{ steps.find.outputs.path }}
-        run: |
-          echo "=== build gagal, coba fallback: hapus KSP, pake kapt ==="
-          sed -i "s|apply plugin: 'com.google.devtools.ksp'|apply plugin: 'kotlin-kapt'|g" app/build.gradle
-          sed -i "s|ksp '|kapt '|g" app/build.gradle
-          sed -i "/com.google.devtools.ksp/d" build.gradle
-          sed -i "/classpath 'com.android.tools.build:gradle:9.1.1'/a\\        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.2.10'" build.gradle
           ./gradlew assembleDebug --stacktrace
 
       - uses: actions/upload-artifact@v4
